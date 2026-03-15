@@ -1,33 +1,48 @@
 # Privacy Policy
 
-**Meeting Availability Assistant** is designed to help users propose meeting times directly from Gmail.
+**Meeting Availability Assistant** helps users propose meeting times directly from Gmail.
 
-## Data Collection
+## Data Collected
 
-This extension does **not** collect, store, sell, or transmit any personal data.
+| Data | Purpose | Stored? |
+|------|---------|---------|
+| Google account email | Identify your account on our backend | Yes — on our server |
+| Google OAuth token | Authenticate requests to our backend and Google APIs | In memory only, never persisted |
+| Email subject, sender, body (up to 2,000 chars) | Detect meeting requests and draft replies | Sent to Anthropic Claude API; not stored by us |
+| Google Calendar free/busy intervals | Suggest open time slots | Not stored; used only to compute suggestions |
+| Display name (optional) | Sign AI-drafted replies | Stored locally on your device |
+| Anthropic API key (optional, BYOK) | Route Claude calls directly from your browser | Stored locally on your device only — never synced or sent to our servers |
 
-All email content, detected times, and calendar availability checks are processed **locally in the user’s browser**.
+## External Services Used
 
-## Calendar Access
+When you use the free tier, email content is sent to:
 
-If enabled, the extension uses Google Calendar access solely to check availability for the purpose of suggesting meeting times.  
-No calendar data is stored, logged, or transmitted to external servers.
+- **Anthropic Claude API** (`api.anthropic.com`) — to detect meeting intent and draft replies. See [Anthropic's Privacy Policy](https://www.anthropic.com/privacy).
+- **Our backend** (Supabase Edge Function) — to authenticate your account, check your usage quota, and relay requests to Claude. Your Google email is stored to track your tier and monthly usage.
+- **Google APIs** (`googleapis.com`) — to read your calendar availability and verify your identity.
+
+When you use "Bring Your Own API Key" (BYOK), email content is sent directly from your browser to the Anthropic API using your key. Our backend is not involved.
+
+## Data Retention
+
+- **Usage counts** are stored per-month and are used solely to enforce the free tier limit.
+- **Email content** is never stored by us. It is transmitted to Anthropic for processing and subject to Anthropic's data retention policies.
+- You can delete your account data by contacting us at the address below.
 
 ## Data Sharing
 
-We do **not** sell, share, or transfer user data to third parties.
+We do **not** sell or share your data with third parties beyond the services listed above, which are necessary to provide the extension's functionality.
 
-## Remote Services
+## Security
 
-The current version of the extension does **not** send email content or personal data to external servers or APIs.
-
-Future versions may offer optional features that use external services; those features will be clearly disclosed and require user opt-in.
+- Your optional Anthropic API key is stored only in your browser's local storage and is never transmitted to our servers.
+- All network communication uses HTTPS.
 
 ## Changes
 
-If this privacy policy changes, the updated version will be posted at this URL.
+If this privacy policy changes, the updated version will be posted here.
 
 ## Contact
 
-If you have questions about this privacy policy, please contact:  
-**[your email address]**
+If you have questions about this privacy policy, please contact:
+**support@[yourdomain].com**
