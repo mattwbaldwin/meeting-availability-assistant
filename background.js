@@ -40,12 +40,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // ─── Intent Detection ─────────────────────────────────────────────────────────
 
 async function checkEmail({ subject, from, body }) {
-  const prompt = `Analyze this email. Is the sender requesting to schedule a meeting or asking about calendar availability?
+  // User-supplied email content is wrapped in XML tags to delimit it from
+  // the trusted instruction text, reducing prompt-injection risk.
+  const prompt = `Analyze the email below. Is the sender requesting to schedule a meeting or asking about calendar availability?
 
-Subject: ${subject}
-From: ${from}
-Body:
-${body.slice(0, 2000)}
+<email>
+<subject>${subject}</subject>
+<from>${from}</from>
+<body>${body.slice(0, 2000)}</body>
+</email>
 
 Reply with JSON only, no other text:
 {"is_availability_request": boolean, "confidence": number}`;
@@ -63,15 +66,18 @@ Reply with JSON only, no other text:
 
 async function draftReply({ emailBody, selectedSlots, userName }) {
   const slotList = selectedSlots.map(s => `- ${s}`).join('\n');
+  // User-supplied content wrapped in XML tags to delimit from instructions.
+  const safeUserName = (userName || 'me').slice(0, 100);
   const prompt = `Draft a professional, friendly email reply proposing the following meeting times. Match the tone of the original email.
 
-Original email:
+<original_email>
 ${emailBody.slice(0, 2000)}
+</original_email>
 
 Times to propose:
 ${slotList}
 
-Sign off as: ${userName || 'me'}
+Sign off as: ${safeUserName}
 
 Write only the reply body text. Do not include a subject line.`;
 
@@ -175,7 +181,7 @@ function formatSlotLabel(start, end) {
 // ─── Account Status ───────────────────────────────────────────────────────────
 
 async function getAccountStatus() {
-  const { apiKey } = await chrome.storage.sync.get('apiKey');
+  const { apiKey } = await chrome.storage.local.get('apiKey');
   if (apiKey) {
     return { success: true, mode: 'byok', tier: 'byok', usage: null, limit: null };
   }
@@ -196,7 +202,7 @@ async function getAccountStatus() {
 // ─── Claude API ───────────────────────────────────────────────────────────────
 
 async function callClaude(prompt, callType) {
-  const { apiKey: byokKey } = await chrome.storage.sync.get('apiKey');
+  const { apiKey: byokKey } = await chrome.storage.local.get('apiKey');
 
   if (byokKey) {
     return callClaudeDirectly(byokKey, prompt);

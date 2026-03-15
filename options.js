@@ -3,7 +3,9 @@
 const $ = id => document.getElementById(id);
 
 async function loadSettings() {
-  const { apiKey = '', userName = '' } = await chrome.storage.sync.get(['apiKey', 'userName']);
+  // API key is stored in local storage (not synced) to prevent cloud exposure.
+  const { apiKey = '' } = await chrome.storage.local.get('apiKey');
+  const { userName = '' } = await chrome.storage.sync.get('userName');
   $('api-key').value = apiKey;
   $('user-name').value = userName;
 }
@@ -56,7 +58,9 @@ async function loadAccountStatus() {
 $('save-btn').addEventListener('click', async () => {
   const apiKey = $('api-key').value.trim();
   const userName = $('user-name').value.trim();
-  await chrome.storage.sync.set({ apiKey, userName });
+  // API key goes to local storage only; userName can sync across devices.
+  await chrome.storage.local.set({ apiKey });
+  await chrome.storage.sync.set({ userName });
 
   const status = $('save-status');
   status.classList.add('visible');

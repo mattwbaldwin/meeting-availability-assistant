@@ -18,8 +18,12 @@ const SELECTORS = {
 
 // ─── Main Observer ────────────────────────────────────────────────────────────
 
+// Debounce rapid DOM mutations (e.g. Gmail's streaming updates) so
+// processVisibleEmails isn't called on every individual mutation.
+let _debounceTimer = null;
 const observer = new MutationObserver(() => {
-  processVisibleEmails();
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(processVisibleEmails, 200);
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
@@ -142,8 +146,13 @@ function initSidebar(sidebar, emailContext) {
       result.slots.forEach((slot, i) => {
         const label = document.createElement('label');
         label.className = 'maa-slot';
-        label.innerHTML = `<input type="checkbox" value="${i}"> ${slot.label}`;
-        label.querySelector('input').addEventListener('change', e => {
+        // Build DOM nodes explicitly — never inject slot.label via innerHTML
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = String(i);
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode('\u00a0' + slot.label));
+        checkbox.addEventListener('change', e => {
           if (e.target.checked) {
             selectedSlots.push(slot.label);
           } else {

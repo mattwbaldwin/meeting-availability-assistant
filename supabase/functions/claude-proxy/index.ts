@@ -11,10 +11,20 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 
+// Set ALLOWED_ORIGIN to your extension's chrome-extension://EXTENSION_ID origin.
+// Falls back to '*' only if the env var is not configured (e.g. during local dev).
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') ?? '*';
+
+// Maximum characters accepted in a prompt — prevents token-exhaustion abuse.
+const MAX_PROMPT_CHARS = 6000;
+
+// Only these call types are accepted from the extension.
+const ALLOWED_TYPES = new Set(['check_email', 'draft_reply']);
+
 // ─── CORS headers (Chrome extension origin) ──────────────────────────────────
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Headers': 'content-type, x-google-token',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -53,30 +63,33 @@ async function handleProxy(req: Request): Promise<Response> {
     // Upsert user record
     const user = await upsertUser(supabase, userInfo);
 
-    // Check usage vs tier limit
-    const monthlyUsage = await getMonthlyUsage(supabase, user.id);
-    const limit = user.tier === 'paid' ? Infinity : FREE_MONTHLY_LIMIT;
-
-    if (monthlyUsage >= limit) {
-      return jsonResponse({ error: 'usage_limit_exceeded', usage: monthlyUsage, limit }, 429);
+    // Parse and validate request body before spending the usage slot
+    const { prompt, type } = await req.json();
+    if (!prompt || typeof prompt !== 'string' || prompt.length > MAX_PROMPT_CHARS) {
+      return jsonResponse({ error: 'invalid_prompt' }, 400);
+    }
+    if (type !== undefined && !ALLOWED_TYPES.has(type)) {
+      return jsonResponse({ error: 'invalid_type' }, 400);
     }
 
-    // Parse request body
-    const { prompt, type } = await req.json();
-    if (!prompt) {
-      return jsonResponse({ error: 'missing_prompt' }, 400);
+    // Atomically increment usage and check limit in one DB operation.
+    // This eliminates the race condition where two concurrent requests both
+    // pass a separate check-then-insert sequence.
+    if (user.tier !== 'paid') {
+      const newCount = await incrementUsage(supabase, user.id);
+      if (newCount > FREE_MONTHLY_LIMIT) {
+        return jsonResponse({ error: 'usage_limit_exceeded', usage: newCount - 1, limit: FREE_MONTHLY_LIMIT }, 429);
+      }
     }
 
     // Call Claude API with server-side key
     const claudeResponse = await callClaude(prompt, type);
 
-    // Record usage
-    await recordUsage(supabase, user.id);
-
     return jsonResponse(claudeResponse);
   } catch (err) {
+    // Log full error server-side; return generic message to client.
     console.error('claude-proxy error:', err);
-    return jsonResponse({ error: 'internal_error', message: err.message }, 500);
+    return jsonResponse({ error: 'internal_error' }, 500);
   }
 }
 
@@ -95,7 +108,8 @@ async function handleStatus(req: Request): Promise<Response> {
 
     return jsonResponse({ tier: user.tier, usage, limit });
   } catch (err) {
-    return jsonResponse({ error: 'internal_error', message: err.message }, 500);
+    console.error('claude-proxy status error:', err);
+    return jsonResponse({ error: 'internal_error' }, 500);
   }
 }
 
@@ -121,28 +135,32 @@ async function upsertUser(supabase: SupabaseClient, userInfo: Record<string, str
     .select('id, tier')
     .single();
 
-  if (error) throw new Error(`DB upsert error: ${error.message}`);
+  if (error) throw new Error(`DB upsert error: ${error.code}`);
   return data;
 }
 
-async function getMonthlyUsage(supabase: SupabaseClient, userId: string): Promise<number> {
-  const month = currentMonth();
-  const { count, error } = await supabase
-    .from('usage')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('month', month);
+// Atomically increments the monthly usage counter and returns the new count.
+// Uses the increment_usage Postgres function (migration 002) so the check and
+// write happen in a single atomic statement, preventing race conditions.
+async function incrementUsage(supabase: SupabaseClient, userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .rpc('increment_usage', { p_user_id: userId, p_month: currentMonth() });
 
-  if (error) throw new Error(`DB usage query error: ${error.message}`);
-  return count ?? 0;
+  if (error) throw new Error(`DB usage increment error: ${error.code}`);
+  return data as number;
 }
 
-async function recordUsage(supabase: SupabaseClient, userId: string) {
-  const { error } = await supabase
-    .from('usage')
-    .insert({ user_id: userId, month: currentMonth() });
+// Read-only usage count for the /status endpoint.
+async function getMonthlyUsage(supabase: SupabaseClient, userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('monthly_usage')
+    .select('count')
+    .eq('user_id', userId)
+    .eq('month', currentMonth())
+    .maybeSingle();
 
-  if (error) throw new Error(`DB usage insert error: ${error.message}`);
+  if (error) throw new Error(`DB usage query error: ${error.code}`);
+  return (data as { count: number } | null)?.count ?? 0;
 }
 
 function currentMonth(): string {

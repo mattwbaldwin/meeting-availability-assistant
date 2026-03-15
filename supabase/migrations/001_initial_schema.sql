@@ -5,7 +5,7 @@ create table if not exists public.users (
   id         uuid primary key default gen_random_uuid(),
   google_sub text unique not null,         -- Google user ID (stable)
   email      text,
-  tier       text not null default 'free', -- 'free' | 'paid'
+  tier       text not null default 'free' check (tier in ('free', 'paid')), -- enforced at DB level
   created_at timestamptz not null default now()
 );
 
