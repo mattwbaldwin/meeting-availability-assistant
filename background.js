@@ -71,19 +71,22 @@ Reply with JSON only, no other text:
 async function draftReply({ emailBody, selectedSlots, userName }) {
   const slotList = selectedSlots.map(s => `- ${s}`).join('\n');
   // User-supplied content wrapped in XML tags to delimit from instructions.
-  const safeUserName = (userName || 'me').slice(0, 100);
+  const safeUserName = (userName || '').slice(0, 100);
+  const signOff = safeUserName ? `Sign off as: ${safeUserName}` : 'Do not include a sign-off or name at the end.';
   const prompt = `Draft a professional, friendly email reply proposing the following meeting times. Match the tone of the original email.
+
+Rules:
+- Write in plain text only. Do not use markdown formatting (no asterisks, no bold, no bullet symbols).
+- Start directly with the greeting or first sentence. Do not include any preamble like "Here's a quick reply:" or separator lines like "---".
+- Do not include a subject line.
+- ${signOff}
 
 <original_email>
 ${emailBody.slice(0, 2000)}
 </original_email>
 
 Times to propose:
-${slotList}
-
-Sign off as: ${safeUserName}
-
-Write only the reply body text. Do not include a subject line.`;
+${slotList}`;
 
   const result = await callClaude(prompt, 'draft_reply');
   return { success: true, replyText: result.content[0].text.trim() };
