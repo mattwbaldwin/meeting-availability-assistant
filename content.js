@@ -32,9 +32,12 @@ observer.observe(document.body, { childList: true, subtree: true });
 setTimeout(injectToolbarButtons, 1500);
 
 function injectToolbarButtons() {
-  // Find all formatting toolbars in open compose/reply boxes
   document.querySelectorAll(SELECTORS.formatToolbar).forEach(toolbar => {
     if (toolbar.querySelector(`[${TOOLBAR_BTN_ATTR}]`)) return; // already injected
+
+    // Skip elements that aren't the real formatting toolbar — Gmail has multiple
+    // elements matching this selector. The real one contains Bold/Italic buttons.
+    if (!toolbar.querySelector('[data-tooltip="Bold"], [aria-label="Bold"]')) return;
 
     const btn = document.createElement('button');
     btn.setAttribute(TOOLBAR_BTN_ATTR, '1');
@@ -71,11 +74,24 @@ function openSidebarForCompose(toolbar) {
   sidebar.id = SIDEBAR_ID;
   sidebar.innerHTML = getSidebarHTML();
 
-  // Insert just above the toolbar row (stays within the compose area, below the email body)
-  const toolbarRow = toolbar.parentElement;
-  toolbarRow.insertAdjacentElement('beforebegin', sidebar);
+  // Append to body and position as a floating panel above the toolbar.
+  // This avoids any interference with Gmail's internal DOM/layout.
+  document.body.appendChild(sidebar);
+  positionSidebar(sidebar, toolbar);
 
   initSidebar(sidebar, { subject, from, body });
+}
+
+function positionSidebar(sidebar, toolbar) {
+  const rect = toolbar.getBoundingClientRect();
+  const panelWidth = 420;
+  const gap = 8;
+  let left = Math.max(8, rect.left);
+  // If panel would overflow the right edge, align to right of toolbar
+  if (left + panelWidth > window.innerWidth - 8) {
+    left = Math.max(8, rect.right - panelWidth);
+  }
+  sidebar.style.cssText = `position:fixed;z-index:99999;top:${Math.max(8, rect.top - gap)}px;left:${left}px;width:${panelWidth}px;max-height:80vh;overflow-y:auto;transform:translateY(-100%);`;
 }
 
 // ─── Sidebar HTML & logic ─────────────────────────────────────────────────────
@@ -274,7 +290,6 @@ function sendMessage(message) {
 const style = document.createElement('style');
 style.textContent = `
 #maa-sidebar {
-  margin: 8px 0;
   font-family: 'Google Sans', Roboto, sans-serif;
   font-size: 13px;
 }
@@ -282,9 +297,8 @@ style.textContent = `
   border: 1px solid #dadce0;
   border-radius: 8px;
   background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
   overflow: hidden;
-  max-width: 480px;
 }
 #maa-header {
   display: flex;
