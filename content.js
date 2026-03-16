@@ -1,12 +1,11 @@
 // content.js — Gmail content script
-// Monitors Gmail for opened emails, detects meeting requests, injects sidebar
+// Injects a toolbar button into Gmail reply/compose windows.
+// User clicks the button to open the Meeting Assistant sidebar.
 
-const PROCESSED_ATTR = 'data-maa-processed';
+const TOOLBAR_BTN_ATTR = 'data-maa-btn';
 const SIDEBAR_ID = 'maa-sidebar';
 
 // ─── Gmail DOM Selectors ──────────────────────────────────────────────────────
-// These selectors target stable Gmail attributes (aria/data) rather than
-// obfuscated class names, making them more durable across Gmail updates.
 
 const SELECTORS = {
   emailBody: 'div[data-message-id] div.a3s.aiL',
@@ -14,76 +13,72 @@ const SELECTORS = {
   sender: 'span.gD',
   composeBody: 'div[contenteditable][aria-label*="Message Body"], div[contenteditable][g_editable="true"]',
   emailContainer: 'div[data-message-id]',
+  // The bottom toolbar row in a compose/reply window (contains Send button)
+  composeToolbar: 'div.aDh, div[data-tooltip="More send options"]',
+  // The formatting toolbar
+  formatToolbar: 'div[aria-label="Formatting options"]',
 };
 
-// ─── Main Observer ────────────────────────────────────────────────────────────
+// ─── Observe compose/reply windows opening ───────────────────────────────────
 
-// Debounce rapid DOM mutations (e.g. Gmail's streaming updates) so
-// processVisibleEmails isn't called on every individual mutation.
 let _debounceTimer = null;
 const observer = new MutationObserver(() => {
+  if (!isExtensionValid()) { observer.disconnect(); return; }
   clearTimeout(_debounceTimer);
-  _debounceTimer = setTimeout(processVisibleEmails, 200);
+  _debounceTimer = setTimeout(injectToolbarButtons, 300);
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
+setTimeout(injectToolbarButtons, 1500);
 
-// Run once on initial load in case an email is already open
-setTimeout(processVisibleEmails, 1500);
+function injectToolbarButtons() {
+  // Find all formatting toolbars in open compose/reply boxes
+  document.querySelectorAll(SELECTORS.formatToolbar).forEach(toolbar => {
+    if (toolbar.querySelector(`[${TOOLBAR_BTN_ATTR}]`)) return; // already injected
 
-function processVisibleEmails() {
-  const emailBodies = document.querySelectorAll(SELECTORS.emailBody);
-  console.log('[MAA] processVisibleEmails — found', emailBodies.length, 'email bodies');
-  emailBodies.forEach(el => {
-    const container = el.closest(SELECTORS.emailContainer);
-    if (!container) return;
+    const btn = document.createElement('button');
+    btn.setAttribute(TOOLBAR_BTN_ATTR, '1');
+    btn.title = 'Meeting Assistant — insert availability';
+    btn.textContent = '📅';
+    btn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:16px;padding:0 6px;vertical-align:middle;opacity:0.7;';
+    btn.addEventListener('mouseenter', () => btn.style.opacity = '1');
+    btn.addEventListener('mouseleave', () => btn.style.opacity = '0.7');
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      openSidebarForCompose(toolbar);
+    });
 
-    const messageId = container.dataset.messageId;
-    if (!messageId || container.hasAttribute(PROCESSED_ATTR)) return;
-
-    // Mark as processed immediately to prevent duplicate handling
-    container.setAttribute(PROCESSED_ATTR, '1');
-
-    const body = el.innerText?.trim() || '';
-    const subject = document.querySelector(SELECTORS.subject)?.innerText?.trim() || '';
-    const senderEl = container.querySelector(SELECTORS.sender);
-    const from = senderEl?.getAttribute('email') || senderEl?.innerText?.trim() || '';
-
-    if (!body) return;
-
-    checkEmail({ subject, from, body, container });
+    toolbar.appendChild(btn);
+    console.log('[MAA] toolbar button injected');
   });
 }
 
-// ─── Email Check ──────────────────────────────────────────────────────────────
+// ─── Open sidebar ─────────────────────────────────────────────────────────────
 
-async function checkEmail({ subject, from, body, container }) {
-  try {
-    const result = await sendMessage({ type: 'CHECK_EMAIL', subject, from, body });
-    console.log('[MAA] checkEmail result:', result);
-    if (result?.is_availability_request && result.confidence > 0.6) {
-      injectSidebar(container, { subject, from, body });
-    }
-  } catch (err) {
-    console.log('[MAA] checkEmail error:', err.message);
-  }
-}
+function openSidebarForCompose(toolbar) {
+  // Gather email context from the thread above the compose box
+  const subject = document.querySelector(SELECTORS.subject)?.innerText?.trim() || '';
+  const emailContainer = document.querySelector(SELECTORS.emailContainer);
+  const senderEl = emailContainer?.querySelector(SELECTORS.sender);
+  const from = senderEl?.getAttribute('email') || senderEl?.innerText?.trim() || '';
+  const body = emailContainer?.querySelector(SELECTORS.emailBody)?.innerText?.trim() || '';
 
-// ─── Sidebar Injection ────────────────────────────────────────────────────────
+  // Place sidebar just above the compose toolbar
+  const composeRoot = toolbar.closest('form, div[role="dialog"], div[tabindex]') || toolbar.parentElement;
 
-function injectSidebar(emailContainer, emailContext) {
-  // Remove any existing sidebar first
+  // Remove any existing sidebar
   document.getElementById(SIDEBAR_ID)?.remove();
 
   const sidebar = document.createElement('div');
   sidebar.id = SIDEBAR_ID;
   sidebar.innerHTML = getSidebarHTML();
+  composeRoot.insertAdjacentElement('beforebegin', sidebar);
 
-  // Insert after the email container
-  emailContainer.insertAdjacentElement('afterend', sidebar);
-
-  initSidebar(sidebar, emailContext);
+  initSidebar(sidebar, { subject, from, body });
 }
+
+// ─── Sidebar HTML & logic ─────────────────────────────────────────────────────
 
 function getSidebarHTML() {
   return `
@@ -148,7 +143,6 @@ function initSidebar(sidebar, emailContext) {
       result.slots.forEach((slot, i) => {
         const label = document.createElement('label');
         label.className = 'maa-slot';
-        // Build DOM nodes explicitly — never inject slot.label via innerHTML
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.value = String(i);
@@ -175,6 +169,7 @@ function initSidebar(sidebar, emailContext) {
     setStatus(statusEl, 'Drafting reply…', 'loading');
 
     try {
+      if (!isExtensionValid()) throw new Error('Extension context invalidated');
       const { userName } = await chrome.storage.sync.get('userName');
       const result = await sendMessage({
         type: 'DRAFT_REPLY',
@@ -214,17 +209,14 @@ function initSidebar(sidebar, emailContext) {
 // ─── Reply Insertion ──────────────────────────────────────────────────────────
 
 function insertReplyText(text) {
-  // Try to find an open compose/reply box
   const composeBox = document.querySelector(SELECTORS.composeBody);
   if (composeBox) {
     composeBox.focus();
-    // Use execCommand for reliable insertion at cursor position
     document.execCommand('selectAll', false, null);
     document.execCommand('insertText', false, text);
     return;
   }
 
-  // If no compose box is open, trigger reply and wait for it to appear
   const replyBtn = document.querySelector('span[data-tooltip="Reply"], button[data-tooltip="Reply"]');
   if (replyBtn) {
     replyBtn.click();
@@ -251,6 +243,14 @@ function waitForElement(selector, timeout = 3000) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function isExtensionValid() {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+}
+
 function setStatus(el, message, type) {
   el.textContent = message;
   el.className = type ? `maa-status maa-status-${type}` : '';
@@ -258,6 +258,10 @@ function setStatus(el, message, type) {
 
 function sendMessage(message) {
   return new Promise((resolve, reject) => {
+    if (!isExtensionValid()) {
+      reject(new Error('Extension context invalidated'));
+      return;
+    }
     chrome.runtime.sendMessage(message, response => {
       if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
       else resolve(response);
