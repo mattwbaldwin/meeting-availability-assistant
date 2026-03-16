@@ -238,6 +238,7 @@ async function callClaudeDirectly(apiKey, prompt) {
 
 async function callClaudeViaBackend(prompt, callType) {
   let token = await getGoogleToken(true);
+  console.log('[MAA] token obtained:', token ? `${token.slice(0, 10)}… (len ${token.length})` : token);
   let res = await fetchBackend(token, prompt, callType);
 
   if (res.status === 401) {
