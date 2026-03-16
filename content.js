@@ -33,6 +33,7 @@ setTimeout(processVisibleEmails, 1500);
 
 function processVisibleEmails() {
   const emailBodies = document.querySelectorAll(SELECTORS.emailBody);
+  console.log('[MAA] processVisibleEmails — found', emailBodies.length, 'email bodies');
   emailBodies.forEach(el => {
     const container = el.closest(SELECTORS.emailContainer);
     if (!container) return;
@@ -59,11 +60,12 @@ function processVisibleEmails() {
 async function checkEmail({ subject, from, body, container }) {
   try {
     const result = await sendMessage({ type: 'CHECK_EMAIL', subject, from, body });
+    console.log('[MAA] checkEmail result:', result);
     if (result?.is_availability_request && result.confidence > 0.6) {
       injectSidebar(container, { subject, from, body });
     }
   } catch (err) {
-    console.debug('[MAA] checkEmail error:', err.message);
+    console.log('[MAA] checkEmail error:', err.message);
   }
 }
 
