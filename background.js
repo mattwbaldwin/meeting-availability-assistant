@@ -7,7 +7,7 @@ const CALENDAR_FREEBUSY_URL = 'https://www.googleapis.com/calendar/v3/freeBusy';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
 // Replace with your deployed Supabase Edge Function URL
-const BACKEND_URL = 'https://YOUR_PROJECT.supabase.co/functions/v1/claude-proxy';
+const BACKEND_URL = 'https://asuygmqdauyjmsufvwgz.supabase.co/functions/v1/claude-proxy';
 
 // ─── Message Router ───────────────────────────────────────────────────────────
 
