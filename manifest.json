@@ -14,7 +14,7 @@
     "https://www.googleapis.com/calendar/*",
     "https://www.googleapis.com/oauth2/*",
     "https://api.anthropic.com/*",
-    "https://YOUR_PROJECT.supabase.co/*"
+    "https://asuygmqdauyjmsufvwgz.supabase.co/*"
   ],
 
   "background": {
@@ -56,6 +56,6 @@
   },
 
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://api.anthropic.com https://www.googleapis.com https://accounts.google.com https://YOUR_PROJECT.supabase.co"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://api.anthropic.com https://www.googleapis.com https://accounts.google.com https://asuygmqdauyjmsufvwgz.supabase.co"
   }
 }
