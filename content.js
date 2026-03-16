@@ -39,8 +39,8 @@ function injectToolbarButtons() {
     const btn = document.createElement('button');
     btn.setAttribute(TOOLBAR_BTN_ATTR, '1');
     btn.title = 'Meeting Assistant — insert availability';
-    btn.textContent = '📅';
-    btn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:16px;padding:0 6px;vertical-align:middle;opacity:0.7;';
+    btn.textContent = 'Avail';
+    btn.style.cssText = 'background:none;border:1px solid #dadce0;border-radius:3px;cursor:pointer;font-size:11px;font-weight:500;padding:2px 6px;vertical-align:middle;color:#444746;opacity:0.85;';
     btn.addEventListener('mouseenter', () => btn.style.opacity = '1');
     btn.addEventListener('mouseleave', () => btn.style.opacity = '0.7');
     btn.addEventListener('click', e => {
@@ -64,16 +64,16 @@ function openSidebarForCompose(toolbar) {
   const from = senderEl?.getAttribute('email') || senderEl?.innerText?.trim() || '';
   const body = emailContainer?.querySelector(SELECTORS.emailBody)?.innerText?.trim() || '';
 
-  // Place sidebar just above the compose toolbar
-  const composeRoot = toolbar.closest('form, div[role="dialog"], div[tabindex]') || toolbar.parentElement;
-
   // Remove any existing sidebar
   document.getElementById(SIDEBAR_ID)?.remove();
 
   const sidebar = document.createElement('div');
   sidebar.id = SIDEBAR_ID;
   sidebar.innerHTML = getSidebarHTML();
-  composeRoot.insertAdjacentElement('beforebegin', sidebar);
+
+  // Insert just above the toolbar row (stays within the compose area, below the email body)
+  const toolbarRow = toolbar.parentElement;
+  toolbarRow.insertAdjacentElement('beforebegin', sidebar);
 
   initSidebar(sidebar, { subject, from, body });
 }
