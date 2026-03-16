@@ -6,8 +6,8 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const CALENDAR_FREEBUSY_URL = 'https://www.googleapis.com/calendar/v3/freeBusy';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
-// Replace with your deployed Supabase Edge Function URL
 const BACKEND_URL = 'https://asuygmqdauyjmsufvwgz.supabase.co/functions/v1/claude-proxy';
+const SUPABASE_ANON_KEY = 'sb_publishable_8E70GP5nSmnb3Hd6-LLzOQ_hDecdqj_';
 
 // ─── Message Router ───────────────────────────────────────────────────────────
 
@@ -193,7 +193,7 @@ async function getAccountStatus() {
     const token = await getGoogleToken(false);
     const userInfo = await getUserInfo(token);
     const statusRes = await fetch(`${BACKEND_URL}/status`, {
-      headers: { 'x-google-token': token },
+      headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'x-google-token': token },
     });
     if (!statusRes.ok) return { success: true, mode: 'backend', tier: 'free', usage: 0, limit: 5, email: userInfo.email };
     const status = await statusRes.json();
@@ -265,6 +265,7 @@ function fetchBackend(token, prompt, callType) {
   return fetch(BACKEND_URL, {
     method: 'POST',
     headers: {
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       'x-google-token': token,
       'content-type': 'application/json',
     },
