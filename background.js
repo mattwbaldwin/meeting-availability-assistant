@@ -237,15 +237,16 @@ async function callClaudeDirectly(apiKey, prompt) {
 }
 
 async function callClaudeViaBackend(prompt, callType) {
-  const token = await getGoogleToken(true);
-  const res = await fetch(BACKEND_URL, {
-    method: 'POST',
-    headers: {
-      'x-google-token': token,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ prompt, type: callType }),
-  });
+  let token = await getGoogleToken(true);
+  let res = await fetchBackend(token, prompt, callType);
+
+  if (res.status === 401) {
+    // Token was stale — remove it and get a fresh one
+    await removeCachedToken(token);
+    token = await getGoogleToken(true);
+    res = await fetchBackend(token, prompt, callType);
+  }
+
   if (res.status === 429) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error === 'usage_limit_exceeded'
@@ -256,6 +257,17 @@ async function callClaudeViaBackend(prompt, callType) {
   return res.json();
 }
 
+function fetchBackend(token, prompt, callType) {
+  return fetch(BACKEND_URL, {
+    method: 'POST',
+    headers: {
+      'x-google-token': token,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ prompt, type: callType }),
+  });
+}
+
 // ─── Google Auth Helpers ──────────────────────────────────────────────────────
 
 function getGoogleToken(interactive = false) {
@@ -264,6 +276,12 @@ function getGoogleToken(interactive = false) {
       if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
       else resolve(token);
     });
+  });
+}
+
+function removeCachedToken(token) {
+  return new Promise(resolve => {
+    chrome.identity.removeCachedAuthToken({ token }, resolve);
   });
 }
 
