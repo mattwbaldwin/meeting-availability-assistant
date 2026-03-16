@@ -7,7 +7,7 @@ const CALENDAR_FREEBUSY_URL = 'https://www.googleapis.com/calendar/v3/freeBusy';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
 const BACKEND_URL = 'https://asuygmqdauyjmsufvwgz.supabase.co/functions/v1/claude-proxy';
-const SUPABASE_ANON_KEY = 'sb_publishable_8E70GP5nSmnb3Hd6-LLzOQ_hDecdqj_';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzdXlnbXFkYXV5am1zdWZ2d2d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MjU0MTIsImV4cCI6MjA4OTIwMTQxMn0.5zV2EBpFn7y9A6b8jenZLyS1RzGl0l5RBgEDQrteMH4';
 
 // ─── Message Router ───────────────────────────────────────────────────────────
 
