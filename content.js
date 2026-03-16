@@ -22,6 +22,7 @@ const SELECTORS = {
 // processVisibleEmails isn't called on every individual mutation.
 let _debounceTimer = null;
 const observer = new MutationObserver(() => {
+  if (!isExtensionValid()) { observer.disconnect(); return; }
   clearTimeout(_debounceTimer);
   _debounceTimer = setTimeout(processVisibleEmails, 200);
 });
@@ -175,6 +176,7 @@ function initSidebar(sidebar, emailContext) {
     setStatus(statusEl, 'Drafting reply…', 'loading');
 
     try {
+      if (!isExtensionValid()) throw new Error('Extension context invalidated');
       const { userName } = await chrome.storage.sync.get('userName');
       const result = await sendMessage({
         type: 'DRAFT_REPLY',
@@ -251,6 +253,14 @@ function waitForElement(selector, timeout = 3000) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function isExtensionValid() {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+}
+
 function setStatus(el, message, type) {
   el.textContent = message;
   el.className = type ? `maa-status maa-status-${type}` : '';
@@ -258,6 +268,10 @@ function setStatus(el, message, type) {
 
 function sendMessage(message) {
   return new Promise((resolve, reject) => {
+    if (!isExtensionValid()) {
+      reject(new Error('Extension context invalidated'));
+      return;
+    }
     chrome.runtime.sendMessage(message, response => {
       if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
       else resolve(response);
