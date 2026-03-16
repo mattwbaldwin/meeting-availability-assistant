@@ -238,6 +238,7 @@ async function callClaudeDirectly(apiKey, prompt) {
 
 async function callClaudeViaBackend(prompt, callType) {
   let token = await getGoogleToken(true);
+  console.log('[MAA] token obtained:', token ? `${token.slice(0, 10)}… (len ${token.length})` : token);
   let res = await fetchBackend(token, prompt, callType);
 
   if (res.status === 401) {
@@ -247,14 +248,17 @@ async function callClaudeViaBackend(prompt, callType) {
     res = await fetchBackend(token, prompt, callType);
   }
 
+  const data = await res.json().catch(() => ({}));
   if (res.status === 429) {
-    const data = await res.json().catch(() => ({}));
     throw new Error(data.error === 'usage_limit_exceeded'
       ? 'Free tier limit reached. Please upgrade or add your own API key in settings.'
       : 'Rate limit exceeded. Please try again later.');
   }
-  if (!res.ok) throw new Error(`Backend error: ${res.status}`);
-  return res.json();
+  if (!res.ok) {
+    console.error('[MAA] Backend error', res.status, data);
+    throw new Error(`Backend error: ${res.status} — ${data.error ?? 'unknown'}`);
+  }
+  return data;
 }
 
 function fetchBackend(token, prompt, callType) {
