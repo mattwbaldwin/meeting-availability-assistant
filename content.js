@@ -36,8 +36,11 @@ function injectToolbarButtons() {
     if (toolbar.querySelector(`[${TOOLBAR_BTN_ATTR}]`)) return; // already injected
 
     // Skip elements that aren't the real formatting toolbar — Gmail has multiple
-    // elements matching this selector. The real one contains Bold/Italic buttons.
-    if (!toolbar.querySelector('[data-tooltip="Bold"], [aria-label="Bold"]')) return;
+    // elements matching this selector. The real one contains Bold/Italic buttons
+    // (Gmail uses tooltips like "Bold (⌘B)", so use wildcard match) or has many buttons.
+    const hasBold = toolbar.querySelector('[data-tooltip*="Bold"],[aria-label*="Bold"],[title*="Bold"]');
+    const hasManyButtons = toolbar.querySelectorAll('button,[role="button"]').length >= 5;
+    if (!hasBold && !hasManyButtons) return;
 
     const btn = document.createElement('button');
     btn.setAttribute(TOOLBAR_BTN_ATTR, '1');
