@@ -27,6 +27,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         case 'GET_ACCOUNT_STATUS':
           sendResponse(await getAccountStatus());
           break;
+        case 'SIGN_IN':
+          await getGoogleToken(true);
+          sendResponse(await getAccountStatus());
+          break;
         default:
           sendResponse({ error: 'Unknown message type' });
       }
