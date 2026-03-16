@@ -33,6 +33,8 @@ function renderStatus(status) {
     emailEl.textContent = 'Not signed in';
     tierBadge.textContent = 'Free';
     tierBadge.className = 'tier-badge tier-free';
+    signInBtn.disabled = false;
+    signInBtn.textContent = '🔑 Sign in with Google';
     signInBtn.style.display = 'flex';
   }
 }
@@ -47,12 +49,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('sign-in-btn').textContent = 'Signing in…';
     try {
       const status = await sendMessage({ type: 'SIGN_IN' });
+      if (status?.error) throw new Error(status.error);
       renderStatus(status);
-    } catch {
+    } catch (err) {
       $('sign-in-btn').disabled = false;
       $('sign-in-btn').textContent = '🔑 Sign in with Google';
       $('status-loading').style.display = 'block';
-      $('status-loading').textContent = 'Sign-in failed. Check your OAuth setup.';
+      $('status-loading').textContent = `Sign-in failed: ${err.message}`;
     }
   });
 
