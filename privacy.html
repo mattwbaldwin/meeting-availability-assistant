@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find a Time — Privacy Policy</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #374151;
+      background: #f9fafb;
+      padding: 40px 20px;
+    }
+    .container { max-width: 680px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 40px 48px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    h1 { font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #9ca3af; margin-bottom: 32px; }
+    h2 { font-size: 16px; font-weight: 600; color: #111827; margin: 28px 0 8px; }
+    p { margin-bottom: 12px; }
+    ul { margin: 8px 0 12px 20px; }
+    li { margin-bottom: 6px; }
+    a { color: #4F46E5; }
+    .accent { border-left: 3px solid #4F46E5; padding-left: 14px; background: #f5f3ff; border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 16px 0; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Privacy Policy</h1>
+    <p class="subtitle">Find a Time Chrome Extension &mdash; Last updated April 2026</p>
+
+    <div class="accent">
+      Find a Time helps you draft meeting availability replies in Gmail using AI and Google Calendar. We designed it to process your data locally and transiently &mdash; we do not store your email content.
+    </div>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><strong>Google account identity</strong> &mdash; your email address and Google user ID, used to identify your account and track usage.</li>
+      <li><strong>Usage counts</strong> &mdash; the number of replies drafted per month, to enforce free-tier limits.</li>
+      <li><strong>Reply quality ratings</strong> &mdash; optional thumbs up/down feedback you submit after inserting a reply.</li>
+    </ul>
+
+    <h2>What we do NOT store</h2>
+    <ul>
+      <li>Email body content, subject lines, or sender information. These are sent transiently to Claude AI to generate a reply draft and are never persisted.</li>
+      <li>Calendar event details beyond free/busy time intervals, which are used only to compute available slots.</li>
+      <li>Your Anthropic API key, if you use Bring Your Own Key mode. It is stored only in your browser's local storage and never transmitted to our servers.</li>
+    </ul>
+
+    <h2>How your data is used</h2>
+    <p>Email content is sent to Anthropic's Claude API solely to detect meeting intent and draft a reply. We pass the minimum necessary context. Anthropic's privacy policy governs how they handle API inputs — see <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">anthropic.com/privacy</a>.</p>
+    <p>Google Calendar free/busy data is fetched in real time and never stored. Google's privacy policy governs your calendar data — see <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a>.</p>
+    <p>Usage counts and account tier are stored in our database (Supabase, hosted in the United States) to enforce free-tier limits and process billing.</p>
+
+    <h2>Google OAuth scopes</h2>
+    <ul>
+      <li><code>calendar.readonly</code> &mdash; to read free/busy intervals only. We do not read event titles or attendees.</li>
+      <li><code>userinfo.email</code> / <code>userinfo.profile</code> &mdash; to identify your account for usage tracking.</li>
+    </ul>
+
+    <h2>Data retention and deletion</h2>
+    <p>Usage records are retained to enforce monthly limits and billing history. To request deletion of your account and all associated data, email us at the address below. We will process deletion requests within 30 days.</p>
+
+    <h2>Third-party services</h2>
+    <ul>
+      <li><strong>Anthropic Claude</strong> &mdash; AI model used to draft replies</li>
+      <li><strong>Google APIs</strong> &mdash; OAuth authentication and Calendar free/busy</li>
+      <li><strong>Supabase</strong> &mdash; database and edge function hosting</li>
+    </ul>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy or data deletion requests: <a href="mailto:matthewbaldwinw@gmail.com">matthewbaldwinw@gmail.com</a></p>
+  </div>
+</body>
+</html>
