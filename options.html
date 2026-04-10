@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meeting Availability Assistant — Settings</title>
+  <title>Find a Time — Settings</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -82,11 +82,34 @@
     .usage-bar-fill { height: 100%; background: #1a73e8; border-radius: 2px; transition: width 0.4s; }
     .usage-label { font-size: 12px; color: #5f6368; }
     #account-loading { color: #5f6368; font-size: 13px; }
+    textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #202124;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+    }
+    textarea:focus { border-color: #1a73e8; }
+    textarea:disabled { background: #f8f9fa; color: #80868b; cursor: not-allowed; }
+    .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .card-header h2 { margin-bottom: 0; }
+    .lock-badge {
+      font-size: 11px;
+      font-weight: 500;
+      background: #fef7e0;
+      color: #b06000;
+      border-radius: 10px;
+      padding: 2px 8px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>⚙️ Meeting Assistant Settings</h1>
+    <h1>⚙️ Find a Time — Settings</h1>
 
     <!-- Account / Tier -->
     <div class="card">
@@ -104,7 +127,7 @@
           <div class="usage-bar"><div class="usage-bar-fill" id="usage-bar-fill"></div></div>
           <div class="usage-label" id="usage-label"></div>
         </div>
-        <p style="margin-top:12px;font-size:12px;color:#5f6368" id="upgrade-hint" style="display:none"></p>
+        <p style="margin-top:12px;font-size:12px;color:#5f6368;display:none" id="limit-hint"></p>
       </div>
     </div>
 
@@ -114,6 +137,16 @@
       <div class="field">
         <label for="user-name">Display name (used to sign replies)</label>
         <input type="text" id="user-name" placeholder="e.g. Sarah">
+      </div>
+    </div>
+
+    <!-- Writing Style Sample -->
+    <div class="card">
+      <h2>Writing Style</h2>
+      <div class="field">
+        <label for="style-sample">Paste a sample of how you write emails</label>
+        <textarea id="style-sample" rows="4" placeholder="e.g. Hey! Quick one — happy to jump on a call anytime this week, just let me know what works for you."></textarea>
+        <p class="hint" id="style-hint">A few sentences in your own voice. Claude will match your tone when drafting replies.</p>
       </div>
     </div>
 
@@ -128,6 +161,28 @@
           bypassing the free tier limit.<br>
           Get a key at <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>.
         </p>
+      </div>
+    </div>
+
+    <!-- Refer a Friend (shown only when signed in via backend) -->
+    <div class="card" id="referral-card" style="display:none">
+      <h2>Refer a Friend</h2>
+      <div class="field">
+        <label>Your referral code</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="referral-code" readonly style="font-family:monospace;font-size:15px;font-weight:600;letter-spacing:2px;color:#4F46E5;max-width:140px">
+          <button class="btn btn-secondary" id="copy-code-btn">Copy</button>
+        </div>
+        <p class="hint" id="referral-count-hint"></p>
+        <p class="hint">Share your code. When a friend enters it, you both get 5 extra replies every month — permanently.</p>
+      </div>
+      <div class="field" id="referral-input-wrap">
+        <label for="referral-input">Have a referral code?</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="referral-input" placeholder="XXXXXXXX" maxlength="8" style="font-family:monospace;text-transform:uppercase;max-width:140px">
+          <button class="btn btn-secondary" id="apply-referral-btn">Apply</button>
+        </div>
+        <p class="hint" id="referral-apply-status"></p>
       </div>
     </div>
 

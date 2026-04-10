@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Meeting Availability Assistant",
+  "name": "Find a Time",
   "version": "1.0.0",
   "description": "Detect meeting requests in Gmail and draft availability replies using AI.",
 

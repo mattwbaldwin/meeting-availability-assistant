@@ -2,6 +2,11 @@
 // Handles all network requests (Claude API, Google Calendar, Supabase backend)
 
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
+const MAX_FREE_SLOTS = 18; // 3 per day × up to 6 days (first 9 shown; rest behind "Show more")
+
+function escapeXml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const CALENDAR_FREEBUSY_URL = 'https://www.googleapis.com/calendar/v3/freeBusy';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
@@ -31,6 +36,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           await getGoogleToken(true);
           sendResponse(await getAccountStatus());
           break;
+        case 'SUBMIT_FEEDBACK':
+          submitFeedback(message.rating).catch(() => {}); // fire-and-forget
+          sendResponse({ success: true });
+          break;
+        case 'GET_REFERRAL_INFO':
+          sendResponse(await getReferralInfo());
+          break;
+        case 'APPLY_REFERRAL':
+          sendResponse(await applyReferral(message.code));
+          break;
         default:
           sendResponse({ error: 'Unknown message type' });
       }
@@ -49,9 +64,9 @@ async function checkEmail({ subject, from, body }) {
   const prompt = `Analyze the email below. Is the sender requesting to schedule a meeting or asking about calendar availability?
 
 <email>
-<subject>${subject}</subject>
-<from>${from}</from>
-<body>${body.slice(0, 2000)}</body>
+<subject>${escapeXml(subject)}</subject>
+<from>${escapeXml(from)}</from>
+<body>${escapeXml(body.slice(0, 2000))}</body>
 </email>
 
 Reply with JSON only, no other text:
@@ -73,6 +88,13 @@ async function draftReply({ emailBody, selectedSlots, userName }) {
   // User-supplied content wrapped in XML tags to delimit from instructions.
   const safeUserName = (userName || '').slice(0, 100);
   const signOff = safeUserName ? `Sign off as: ${safeUserName}` : 'Do not include a sign-off or name at the end.';
+
+  const { styleSample } = await chrome.storage.sync.get('styleSample');
+  const safeStyle = (styleSample || '').trim().slice(0, 500);
+  const styleBlock = safeStyle
+    ? `\n<style_sample>\n${escapeXml(safeStyle)}\n</style_sample>\nMatch the writing style shown in the style_sample above.\n`
+    : '';
+
   const prompt = `Draft a professional, friendly email reply proposing the following meeting times. Match the tone of the original email.
 
 Rules:
@@ -80,9 +102,9 @@ Rules:
 - Start directly with the greeting or first sentence. Do not include any preamble like "Here's a quick reply:" or separator lines like "---".
 - Do not include a subject line.
 - ${signOff}
-
+${styleBlock}
 <original_email>
-${emailBody.slice(0, 2000)}
+${escapeXml(emailBody.slice(0, 2000))}
 </original_email>
 
 Times to propose:
@@ -123,7 +145,9 @@ function computeFreeSlots(start, end, busyIntervals) {
   const SLOT_DURATION_MS = 60 * 60 * 1000; // 1 hour
   const WORK_START_HOUR = 9;
   const WORK_END_HOUR = 17;
+  const MAX_SLOTS_PER_DAY = 3;
   const slots = [];
+  const slotsPerDay = {}; // dateString → count
 
   const busy = busyIntervals.map(b => ({
     start: new Date(b.start).getTime(),
@@ -139,7 +163,7 @@ function computeFreeSlots(start, end, busyIntervals) {
     cursor.setHours(WORK_START_HOUR);
   }
 
-  while (cursor < end && slots.length < 20) {
+  while (cursor < end && slots.length < MAX_FREE_SLOTS) {
     const day = cursor.getDay();
     if (day === 0 || day === 6) {
       // Skip weekends
@@ -148,6 +172,14 @@ function computeFreeSlots(start, end, busyIntervals) {
       continue;
     }
     if (cursor.getHours() >= WORK_END_HOUR) {
+      cursor.setDate(cursor.getDate() + 1);
+      cursor.setHours(WORK_START_HOUR);
+      continue;
+    }
+
+    const dateKey = cursor.toDateString();
+    if ((slotsPerDay[dateKey] || 0) >= MAX_SLOTS_PER_DAY) {
+      // Day is full — jump to next day
       cursor.setDate(cursor.getDate() + 1);
       cursor.setHours(WORK_START_HOUR);
       continue;
@@ -163,6 +195,7 @@ function computeFreeSlots(start, end, busyIntervals) {
         end: new Date(slotEnd).toISOString(),
         label: formatSlotLabel(new Date(slotStart), new Date(slotEnd)),
       });
+      slotsPerDay[dateKey] = (slotsPerDay[dateKey] || 0) + 1;
     }
 
     cursor.setTime(slotEnd);
@@ -241,7 +274,6 @@ async function callClaudeDirectly(apiKey, prompt) {
 
 async function callClaudeViaBackend(prompt, callType) {
   let token = await getGoogleToken(true);
-  console.log('[MAA] token obtained:', token ? `${token.slice(0, 10)}… (len ${token.length})` : token);
   let res = await fetchBackend(token, prompt, callType);
 
   if (res.status === 401) {
@@ -254,8 +286,11 @@ async function callClaudeViaBackend(prompt, callType) {
   const data = await res.json().catch(() => ({}));
   if (res.status === 429) {
     throw new Error(data.error === 'usage_limit_exceeded'
-      ? 'Free tier limit reached. Please upgrade or add your own API key in settings.'
+      ? 'Free tier limit reached. Add your own API key in settings for unlimited use.'
       : 'Rate limit exceeded. Please try again later.');
+  }
+  if (res.status === 503 || data.error === 'service_temporarily_unavailable') {
+    throw new Error('This service is temporarily unavailable. Please try again later or add your own API key in settings.');
   }
   if (!res.ok) {
     console.error('[MAA] Backend error', res.status, data);
@@ -274,6 +309,62 @@ function fetchBackend(token, prompt, callType) {
     },
     body: JSON.stringify({ prompt, type: callType }),
   });
+}
+
+// ─── Feedback ─────────────────────────────────────────────────────────────────
+
+async function submitFeedback(rating) {
+  const token = await getGoogleToken(false).catch(() => null);
+  if (!token) return;
+  await fetch(`${BACKEND_URL}/feedback`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'x-google-token': token,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ rating }),
+  });
+}
+
+// ─── Referral Credits ─────────────────────────────────────────────────────────
+
+async function getReferralInfo() {
+  try {
+    const token = await getGoogleToken(false);
+    if (!token) return { success: false };
+    const res = await fetch(`${BACKEND_URL}/referral`, {
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'x-google-token': token,
+      },
+    });
+    if (!res.ok) return { success: false };
+    return { success: true, ...(await res.json()) };
+  } catch {
+    return { success: false };
+  }
+}
+
+async function applyReferral(code) {
+  try {
+    const token = await getGoogleToken(false);
+    if (!token) return { success: false, error: 'Not signed in' };
+    const res = await fetch(`${BACKEND_URL}/referral`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'x-google-token': token,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ code: code.toUpperCase() }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error || 'Failed' };
+    return { success: true, ...data };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
 
 // ─── Google Auth Helpers ──────────────────────────────────────────────────────

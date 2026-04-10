@@ -45,4 +45,4 @@ If this privacy policy changes, the updated version will be posted here.
 ## Contact
 
 If you have questions about this privacy policy, please contact:
-**support@[yourdomain].com**
+**mattwbaldwin@gmail.com**

@@ -1,0 +1,21 @@
+Stop switching between Gmail and Google Calendar just to propose meeting times.
+
+Find a Time detects when someone asks to meet and helps you respond in seconds. Click the calendar icon in your Gmail compose toolbar, pick the times that work from your upcoming availability, and a natural, ready-to-send reply is drafted and inserted into your email — no copying, no pasting, no tab-switching.
+
+Your availability is pulled directly from Google Calendar, so the times you propose are always accurate. The AI-drafted reply matches the tone of the conversation, includes your selected times, and signs off with your name.
+
+What it does:
+- Shows your free time slots from Google Calendar (next two weeks, weekdays only)
+- Lets you pick which times to propose
+- Drafts a professional, friendly reply and inserts it into your compose window
+- Matches your writing style if you provide a sample in settings
+
+How to use it:
+1. Open a reply to a meeting request in Gmail
+2. Click the calendar icon in the formatting toolbar
+3. Select your available times
+4. Click "Draft & Insert Reply" — done
+
+Privacy-first: Your emails and calendar data are used only to generate replies and are never stored. Optional API key is kept locally on your device.
+
+Free to use (5 replies/month). Bring your own Anthropic API key for unlimited use.
